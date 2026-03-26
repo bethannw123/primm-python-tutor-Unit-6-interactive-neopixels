@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>PRIMM NeoPixel Tutor — Unit 6</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #ffffff;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+    #root { width: 100%; }
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f5f5f0;
+      --color-background-tertiary: #eeede8;
+      --color-background-danger: #fff0f0;
+      --color-background-warning: #fffbeb;
+      --color-background-info: #eff6ff;
+      --color-background-success: #f0fdf4;
+      --color-text-primary: #1a1a1a;
+      --color-text-secondary: #555550;
+      --color-text-tertiary: #88887f;
+      --color-text-danger: #b91c1c;
+      --color-text-warning: #92400e;
+      --color-text-info: #1d4ed8;
+      --color-text-success: #166534;
+      --color-border-tertiary: rgba(0,0,0,0.12);
+      --color-border-secondary: rgba(0,0,0,0.22);
+      --color-border-primary: rgba(0,0,0,0.35);
+      --color-border-danger: #fca5a5;
+      --color-border-warning: #fcd34d;
+      --color-border-info: #93c5fd;
+      --color-border-success: #86efac;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+      --border-radius-xl: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #e8e8e3; }
+      :root {
+        --color-background-primary: #232320;
+        --color-background-secondary: #2c2c28;
+        --color-background-tertiary: #1a1a18;
+        --color-background-danger: #2a1010;
+        --color-background-warning: #2a1f00;
+        --color-background-info: #0f1e3a;
+        --color-background-success: #0a2010;
+        --color-text-primary: #e8e8e3;
+        --color-text-secondary: #a0a098;
+        --color-text-tertiary: #66665f;
+        --color-text-danger: #f87171;
+        --color-text-warning: #fbbf24;
+        --color-text-info: #60a5fa;
+        --color-text-success: #4ade80;
+        --color-border-tertiary: rgba(255,255,255,0.10);
+        --color-border-secondary: rgba(255,255,255,0.18);
+        --color-border-danger: #7f1d1d;
+        --color-border-warning: #78350f;
+        --color-border-info: #1e3a5f;
+      }
+    }
+    button { font-family: inherit; cursor: pointer; transition: opacity 0.15s; }
+    button:active { opacity: 0.8; }
+    .pixel-dot {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1px solid #2a2a2a;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script>
+const { useState, useEffect, useRef } = React;
+
+const PHASES = ["predict","run","investigate","modify","make"];
+const phaseInfo = {
+  predict:     { label:"Predict",     color:"#534AB7", bg:"#EEEDFE", border:"#AFA9EC" },
+  run:         { label:"Run",         color:"#0F6E56", bg:"#E1F5EE", border:"#5DCAA5" },
+  investigate: { label:"Investigate", color:"#185FA5", bg:"#E6F1FB", border:"#85B7EB" },
+  modify:      { label:"Modify",      color:"#854F0B", bg:"#FAEEDA", border:"#EF9F27" },
+  make:        { label:"Make",        color:"#993C1D", bg:"#FAECE7", border:"#F0997B" },
+};
+
+var OFF=[0,0,0],RED=[255,0,0],GREEN=[0,255,0],BLUE=[0,0,255],WHITE=[255,255,255],
+    YELLOW=[255,200,0],PURPLE=[160,0,255],CYAN=[0,220,220],ORANGE=[255,100,0],PINK=[255,20,120];
+
+var CONCEPTS = [
+  {
+    id:"c1", title:"Concept 1: for loop with range()",
+    problems:[
+      {
+        id:"p1a", phase_start:"predict",
+        code:"import neopixel\nimport board\n\npixels = neopixel.NeoPixel(board.D6, 12)\n\nfor i in range(6):\n    pixels[i] = (255, 0, 0)",
+        predict:{
+          question:"How many pixels will light up, and what color will they be?",
+          options:["All 12 pixels — red","6 pixels — red","6 pixels — starting from pixel 6","12 pixels — different colors"],
+          answer:1,
+          hint:"range(6) generates the numbers 0,1,2,3,4,5 — that is 6 numbers. Each one sets one pixel to red (255,0,0).",
+          retry:{
+            intro:"Similar example — same idea, different range:",
+            code:"for i in range(4):\n    pixels[i] = (0, 255, 0)",
+            question:"How many pixels light up, and what color?",
+            options:[
+              {label:"4 pixels — green", correct:true},
+              {label:"12 pixels — green", correct:false, feedback:"range(4) only generates 4 numbers: 0,1,2,3."},
+              {label:"4 pixels — red", correct:false, feedback:"(0,255,0) is green in RGB — red would be (255,0,0)."},
+              {label:"All pixels off", correct:false, feedback:"pixels[i] = (0,255,0) sets each pixel to green."}
+            ],
+            explanation:"range(4) gives 0,1,2,3 — 4 pixels. (0,255,0) is green."
+          }
+        },
+        run:{
+          steps:[
+            {line:"pixels = neopixel.NeoPixel(board.D6, 12)", delay:700, result:null, commentary:"NeoPixel strip initialized — all 12 pixels off.", pixelState:[OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"for i in range(6):", delay:600, result:null, commentary:"Loop begins. range(6) will iterate i = 0, 1, 2, 3, 4, 5."},
+            {line:"    pixels[0] = (255, 0, 0)  # i=0", delay:500, result:null, commentary:"i=0: pixel 0 lights up red.", pixelState:[RED,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[1] = (255, 0, 0)  # i=1", delay:500, result:null, commentary:"i=1: pixel 1 lights up red.", pixelState:[RED,RED,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[2] = (255, 0, 0)  # i=2", delay:500, result:null, commentary:"i=2: pixel 2 lights up red.", pixelState:[RED,RED,RED,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[3] = (255, 0, 0)  # i=3", delay:500, result:null, commentary:"i=3: pixel 3 lights up red.", pixelState:[RED,RED,RED,RED,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[4] = (255, 0, 0)  # i=4", delay:500, result:null, commentary:"i=4: pixel 4 lights up red.", pixelState:[RED,RED,RED,RED,RED,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[5] = (255, 0, 0)  # i=5", delay:500, result:null, commentary:"i=5: pixel 5 lights up red. Loop ends.", pixelState:[RED,RED,RED,RED,RED,RED,OFF,OFF,OFF,OFF,OFF,OFF]}
+          ],
+          is_error:false,
+          explanation:"range(6) generates 0 through 5, so the loop runs 6 times. Each iteration lights one pixel. Pixels 6-11 stay off because the loop never reaches them."
+        },
+        investigate:{
+          questions:[
+            {
+              q:"What values does range(6) generate?",
+              options:["1,2,3,4,5,6","0,1,2,3,4,5","0,1,2,3,4,5,6","6"],
+              answer:1,
+              hint:"range() always starts at 0 by default. range(6) gives exactly 6 numbers: 0 through 5.",
+              retry:{
+                intro:"What does range(3) generate?",
+                code:"for i in range(3):\n    print(i)",
+                question:"What values will print?",
+                options:[
+                  {label:"1, 2, 3", correct:false, feedback:"range() starts at 0, not 1."},
+                  {label:"0, 1, 2", correct:true},
+                  {label:"0, 1, 2, 3", correct:false, feedback:"range(3) gives exactly 3 values: 0, 1, 2."},
+                  {label:"3", correct:false, feedback:"range(3) gives a sequence of 3 numbers, not just the number 3."}
+                ],
+                explanation:"range(n) always starts at 0 and generates n values: 0 through n-1."
+              }
+            },
+            {
+              q:"What does the variable i represent inside the loop?",
+              options:["The color of the pixel","The number of pixels in the strip","The current pixel index being set","The brightness level"],
+              answer:2,
+              hint:"i takes the value 0, then 1, then 2... and is used as pixels[i] to select which pixel to set.",
+              retry:{
+                intro:"In this code, what does i control?",
+                code:"for i in range(12):\n    pixels[i] = (0,0,255)",
+                question:"What does i do here?",
+                options:[
+                  {label:"Sets the brightness", correct:false, feedback:"Brightness is a separate NeoPixel setting."},
+                  {label:"Selects which pixel to light up", correct:true},
+                  {label:"Sets the blue value", correct:false, feedback:"The blue value is the third number in the tuple: 255."},
+                  {label:"Counts how many loops ran", correct:false, feedback:"While i does increment, its purpose here is to index into the pixel strip."}
+                ],
+                explanation:"i is used as the index pixels[i], selecting a different pixel each iteration."
+              }
+            },
+            {
+              q:"Which pixels remain off after the loop finishes?",
+              options:["Pixels 0-5","Pixels 6-11","All pixels","No pixels — all are on"],
+              answer:1,
+              hint:"range(6) only goes up to index 5. Pixels 6 through 11 are never touched.",
+              retry:{
+                intro:"If this runs on a 12-pixel strip, which pixels stay off?",
+                code:"for i in range(3):\n    pixels[i] = (255,255,0)",
+                question:"Which pixels stay off?",
+                options:[
+                  {label:"Pixels 0-2", correct:false, feedback:"Pixels 0, 1, 2 get set to yellow."},
+                  {label:"Pixels 3-11", correct:true},
+                  {label:"All pixels stay off", correct:false, feedback:"The loop does set pixels 0, 1, and 2."},
+                  {label:"No pixels stay off", correct:false, feedback:"range(3) only reaches indices 0, 1, 2."}
+                ],
+                explanation:"range(3) only touches indices 0, 1, 2 — the rest stay off."
+              }
+            }
+          ]
+        },
+        modify:{
+          prompt:"Change the code to light up ALL 12 pixels in blue instead of 6 in red.",
+          options:[
+            {label:"for i in range(12):\n    pixels[i] = (0, 0, 255)", correct:true},
+            {label:"for i in range(12):\n    pixels[i] = (255, 0, 0)", correct:false, feedback:"range(12) is correct, but (255,0,0) is red. Blue is (0,0,255) in RGB."},
+            {label:"for i in range(6):\n    pixels[i] = (0, 0, 255)", correct:false, feedback:"(0,0,255) is correct for blue, but range(6) only lights up the first 6 pixels."},
+            {label:"for i in range(12):\n    pixels[12] = (0, 0, 255)", correct:false, feedback:"pixels[12] is out of range for a 12-pixel strip (valid indices: 0-11). Use pixels[i]."}
+          ],
+          explanation:"range(12) generates 0-11, covering all pixels. (0,0,255) is blue in RGB.",
+          retry:{
+            intro:"Similar challenge — which code lights pixels 0-7 in green?",
+            options:[
+              {label:"for i in range(8):\n    pixels[i] = (0, 255, 0)", correct:true},
+              {label:"for i in range(7):\n    pixels[i] = (0, 255, 0)", correct:false, feedback:"range(7) gives 0-6, which is only 7 pixels. You need range(8) for pixels 0-7."},
+              {label:"for i in range(8):\n    pixels[i] = (255, 0, 0)", correct:false, feedback:"range(8) is right, but (255,0,0) is red. Green is (0,255,0)."},
+              {label:"for i in range(8):\n    pixels[8] = (0, 255, 0)", correct:false, feedback:"pixels[8] is a fixed index. Use pixels[i] to advance through the strip."}
+            ],
+            explanation:"range(8) covers indices 0-7. (0,255,0) is green. pixels[i] uses the loop variable to advance."
+          }
+        },
+        make:{
+          prompt:"Write a for loop that lights pixels 0-11 alternating red and off. Pixel 0=red, pixel 1=off, pixel 2=red... Use i % 2 == 0 to check even numbers.",
+          options:[
+            {label:"for i in range(12):\n    if i % 2 == 0:\n        pixels[i] = (255,0,0)\n    else:\n        pixels[i] = (0,0,0)", correct:true},
+            {label:"for i in range(12):\n    pixels[i] = (255,0,0)", correct:false, feedback:"This lights every pixel red — there is no alternating pattern. You need an if/else to skip odd pixels."},
+            {label:"for i in range(6):\n    pixels[i*2] = (255,0,0)", correct:false, feedback:"This creates the pattern but never explicitly sets odd pixels to off. Use the if/else version."},
+            {label:"for i in range(12):\n    if i % 2 == 0:\n        pixels[i] = (255,0,0)", correct:false, feedback:"This sets even pixels to red but never sets odd pixels to off — previous state could bleed through."}
+          ],
+          explanation:"range(12) covers all pixels. i % 2 == 0 is True for even indices — those get red. The else sets odd indices to (0,0,0) — off.",
+          retry:{
+            intro:"Similar pattern — which code lights every third pixel (0,3,6,9) in purple, rest off?",
+            options:[
+              {label:"for i in range(12):\n    if i % 3 == 0:\n        pixels[i] = (160,0,255)\n    else:\n        pixels[i] = (0,0,0)", correct:true},
+              {label:"for i in range(12):\n    if i % 3 == 0:\n        pixels[i] = (160,0,255)", correct:false, feedback:"Doesn't set non-multiples of 3 to off — previous state could bleed through."},
+              {label:"for i in range(4):\n    pixels[i*3] = (160,0,255)", correct:false, feedback:"This sets 0,3,6,9 to purple but doesn't clear the other pixels."},
+              {label:"for i in range(12):\n    if i % 2 == 0:\n        pixels[i] = (160,0,255)\n    else:\n        pixels[i] = (0,0,0)", correct:false, feedback:"% 2 selects every other pixel. You need % 3 for every third pixel."}
+            ],
+            explanation:"i % 3 == 0 is True for 0,3,6,9. The else ensures all other pixels are explicitly turned off."
+          }
+        }
+      },
+      {
+        id:"p1b", phase_start:"modify",
+        code:"for i in range(12):\n    pixels[i] = (255, 200, 0)",
+        modify:{
+          prompt:"This lights all 12 pixels yellow. Change it to light only the LAST 6 pixels (6-11) in cyan using range(start, stop).",
+          options:[
+            {label:"for i in range(6, 12):\n    pixels[i] = (0, 220, 220)", correct:true},
+            {label:"for i in range(6, 12):\n    pixels[i] = (255, 200, 0)", correct:false, feedback:"range(6,12) is correct for pixels 6-11, but (255,200,0) is yellow. Cyan is (0,220,220)."},
+            {label:"for i in range(6, 11):\n    pixels[i] = (0, 220, 220)", correct:false, feedback:"range(6,11) goes from 6 to 10 — it misses pixel 11. The stop value is exclusive, so use range(6,12)."},
+            {label:"for i in range(0, 6):\n    pixels[i] = (0, 220, 220)", correct:false, feedback:"range(0,6) lights pixels 0-5 — the FIRST half. You need range(6,12) for the last half."}
+          ],
+          explanation:"range(start, stop) lets you control where the loop begins. range(6,12) generates 6,7,8,9,10,11.",
+          retry:{
+            intro:"Which code lights pixels 3-8 in orange?",
+            options:[
+              {label:"for i in range(3, 9):\n    pixels[i] = (255, 100, 0)", correct:true},
+              {label:"for i in range(3, 8):\n    pixels[i] = (255, 100, 0)", correct:false, feedback:"range(3,8) goes 3,4,5,6,7 — it misses pixel 8. The stop is exclusive, so use range(3,9)."},
+              {label:"for i in range(3, 9):\n    pixels[i] = (0, 255, 0)", correct:false, feedback:"range(3,9) is correct but (0,255,0) is green. Orange is (255,100,0)."},
+              {label:"for i in range(9):\n    pixels[i] = (255, 100, 0)", correct:false, feedback:"range(9) starts at 0, not 3. Use range(3,9) to start at pixel 3."}
+            ],
+            explanation:"range(3,9) generates 3,4,5,6,7,8. The stop value is always exclusive."
+          }
+        },
+        make:{
+          prompt:"Create a progress bar: light the first 8 pixels in green and the last 4 in red — all in one program.",
+          options:[
+            {label:"for i in range(8):\n    pixels[i] = (0,255,0)\nfor i in range(8,12):\n    pixels[i] = (255,0,0)", correct:true},
+            {label:"for i in range(12):\n    if i < 8:\n        pixels[i] = (0,255,0)\n    else:\n        pixels[i] = (255,0,0)", correct:true},
+            {label:"for i in range(8):\n    pixels[i] = (0,255,0)\nfor i in range(4):\n    pixels[i] = (255,0,0)", correct:false, feedback:"The second loop uses range(4) which overwrites pixels 0-3 with red. Use range(8,12) to target pixels 8-11."},
+            {label:"for i in range(8,12):\n    pixels[i] = (0,255,0)\nfor i in range(8):\n    pixels[i] = (255,0,0)", correct:false, feedback:"The ranges are swapped — this lights 8-11 green and 0-7 red, which is the reverse of the goal."}
+          ],
+          explanation:"Two sequential loops or one loop with if/else both work. The key: range(8,12) targets the last 4 pixels, not range(4).",
+          retry:{
+            intro:"Light pixels 0-3 in pink, pixels 4-7 in blue, pixels 8-11 in white.",
+            options:[
+              {label:"for i in range(4):\n    pixels[i]=(255,20,120)\nfor i in range(4,8):\n    pixels[i]=(0,0,255)\nfor i in range(8,12):\n    pixels[i]=(255,255,255)", correct:true},
+              {label:"for i in range(4):\n    pixels[i]=(255,20,120)\nfor i in range(4):\n    pixels[i]=(0,0,255)\nfor i in range(4):\n    pixels[i]=(255,255,255)", correct:false, feedback:"All three loops use range(4) starting at 0 — they overwrite each other. Use range(4,8) and range(8,12)."},
+              {label:"for i in range(12):\n    pixels[i]=(255,20,120)", correct:false, feedback:"This only lights all pixels pink — no three-zone pattern."},
+              {label:"for i in range(4,8):\n    pixels[i]=(255,20,120)\nfor i in range(8,12):\n    pixels[i]=(0,0,255)\nfor i in range(12):\n    pixels[i]=(255,255,255)", correct:false, feedback:"The last loop overwrites everything with white."}
+            ],
+            explanation:"Three loops each targeting a non-overlapping range: range(4), range(4,8), range(8,12)."
+          }
+        }
+      }
+    ]
+  },
+  {
+    id:"c2", title:"Concept 2: while loops",
+    problems:[
+      {
+        id:"p2a", phase_start:"predict",
+        code:"i = 0\nwhile i < 6:\n    pixels[i] = (0, 255, 0)\n    i += 1",
+        predict:{
+          question:"What does this while loop produce on the strip?",
+          options:["All 12 pixels green","First 6 pixels green","An infinite loop","Only pixel 0 green"],
+          answer:1,
+          hint:"i starts at 0 and increases by 1 each time. The loop runs while i < 6, so it stops when i reaches 6 — after lighting pixels 0-5.",
+          retry:{
+            intro:"Similar — what does this while loop produce?",
+            code:"i = 0\nwhile i < 3:\n    pixels[i] = (255, 0, 255)\n    i += 1",
+            question:"What lights up?",
+            options:[
+              {label:"Pixels 0-3 in purple", correct:false, feedback:"i < 3 stops before i=3, so only pixels 0,1,2 light up."},
+              {label:"Pixels 0-2 in purple", correct:true},
+              {label:"All 12 pixels purple", correct:false, feedback:"The condition i < 3 stops the loop after 3 iterations."},
+              {label:"Nothing — infinite loop", correct:false, feedback:"i += 1 increments i each time, so it will eventually reach 3 and stop."}
+            ],
+            explanation:"i < 3 allows i=0,1,2 but stops at i=3. Three pixels light up."
+          }
+        },
+        run:{
+          steps:[
+            {line:"i = 0", delay:600, result:null, commentary:"i starts at 0. Strip is off.", pixelState:[OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"while i < 6:", delay:500, result:null, commentary:"Check: 0 < 6 is True. Enter loop."},
+            {line:"    pixels[0] = (0,255,0)  # i=0", delay:500, result:null, commentary:"Pixel 0 set to green.", pixelState:[GREEN,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    i += 1  # i becomes 1", delay:400, result:null, commentary:"i is now 1. Check: 1 < 6 is True."},
+            {line:"    pixels[1] = (0,255,0)  # i=1", delay:500, result:null, commentary:"Pixel 1 set to green.", pixelState:[GREEN,GREEN,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[2] = (0,255,0)  # i=2", delay:500, result:null, commentary:"Pixel 2 set to green.", pixelState:[GREEN,GREEN,GREEN,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[3] = (0,255,0)  # i=3", delay:500, result:null, commentary:"Pixel 3 set to green.", pixelState:[GREEN,GREEN,GREEN,GREEN,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[4] = (0,255,0)  # i=4", delay:500, result:null, commentary:"Pixel 4 set to green.", pixelState:[GREEN,GREEN,GREEN,GREEN,GREEN,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"    pixels[5] = (0,255,0)  # i=5", delay:500, result:null, commentary:"Pixel 5 set to green. i becomes 6. Check: 6 < 6 is False. Loop ends.", pixelState:[GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,OFF,OFF,OFF,OFF,OFF,OFF]}
+          ],
+          is_error:false,
+          explanation:"The while loop checks i < 6 before each iteration. When i reaches 6 the condition is False and the loop stops. The i += 1 is critical — without it, i would never change and the loop would run forever."
+        },
+        investigate:{
+          questions:[
+            {
+              q:"What would happen if you forgot to write i += 1?",
+              options:["The loop runs once","The loop skips pixel 0","The loop runs forever — infinite loop","The strip turns off"],
+              answer:2,
+              hint:"Without i += 1, i stays at 0 forever. i < 6 is always True, so the loop never stops.",
+              retry:{
+                intro:"What is wrong with this code?",
+                code:"i = 0\nwhile i < 5:\n    pixels[i] = (255,0,0)",
+                question:"What happens?",
+                options:[
+                  {label:"5 pixels light up red", correct:false, feedback:"i never changes, so pixel 0 gets set repeatedly and the loop never ends."},
+                  {label:"Infinite loop — i never changes", correct:true},
+                  {label:"Only pixel 0 lights up", correct:false, feedback:"Technically pixel 0 would be set but the program would be stuck in the loop."},
+                  {label:"An error is raised", correct:false, feedback:"Python won't catch this — it just loops forever."}
+                ],
+                explanation:"Without i += 1, i is always 0. i < 5 is always True. Infinite loop."
+              }
+            },
+            {
+              q:"What is the value of i when the loop stops?",
+              options:["5","6","11","0"],
+              answer:1,
+              hint:"The loop stops when the condition becomes False. That happens when i = 6, because 6 < 6 is False.",
+              retry:{
+                intro:"When does this loop stop?",
+                code:"i = 0\nwhile i < 4:\n    pixels[i] = (0,0,255)\n    i += 1",
+                question:"What value does i have when the loop ends?",
+                options:[
+                  {label:"3", correct:false, feedback:"i=3 still satisfies 3 < 4, so the loop runs one more time."},
+                  {label:"4", correct:true},
+                  {label:"5", correct:false, feedback:"The condition fails at i=4, so the loop never reaches i=5."},
+                  {label:"0", correct:false, feedback:"i starts at 0 but increments each iteration."}
+                ],
+                explanation:"The loop exits when i=4 because 4 < 4 is False."
+              }
+            }
+          ]
+        },
+        modify:{
+          prompt:"Change the while loop to light up all 12 pixels in blue instead of 6 in green.",
+          options:[
+            {label:"i = 0\nwhile i < 12:\n    pixels[i] = (0, 0, 255)\n    i += 1", correct:true},
+            {label:"i = 0\nwhile i < 12:\n    pixels[i] = (0, 255, 0)\n    i += 1", correct:false, feedback:"i < 12 is correct for all 12 pixels, but (0,255,0) is green. Blue is (0,0,255)."},
+            {label:"i = 0\nwhile i <= 12:\n    pixels[i] = (0, 0, 255)\n    i += 1", correct:false, feedback:"i <= 12 would try to access pixels[12] which doesn't exist. Use i < 12."},
+            {label:"i = 0\nwhile i < 12:\n    pixels[i] = (0, 0, 255)", correct:false, feedback:"Missing i += 1 — this would be an infinite loop."}
+          ],
+          explanation:"Change the condition to i < 12 and the color to (0,0,255) for blue. Always keep i += 1.",
+          retry:{
+            intro:"Which while loop correctly lights pixels 0-8 in orange?",
+            options:[
+              {label:"i = 0\nwhile i < 9:\n    pixels[i] = (255,100,0)\n    i += 1", correct:true},
+              {label:"i = 0\nwhile i < 9:\n    pixels[i] = (255,100,0)", correct:false, feedback:"Missing i += 1 — infinite loop."},
+              {label:"i = 0\nwhile i <= 9:\n    pixels[i] = (255,100,0)\n    i += 1", correct:false, feedback:"i <= 9 goes up to index 9, lighting 10 pixels (0-9) not 9."},
+              {label:"i = 1\nwhile i < 9:\n    pixels[i] = (255,100,0)\n    i += 1", correct:false, feedback:"Starting i at 1 skips pixel 0."}
+            ],
+            explanation:"Start i=0, condition i < 9 (covers 0-8), always include i += 1."
+          }
+        },
+        make:{
+          prompt:"Write a while loop that lights pixels starting from pixel 11 DOWN to pixel 0 in yellow — reverse order.",
+          options:[
+            {label:"i = 11\nwhile i >= 0:\n    pixels[i] = (255,200,0)\n    i -= 1", correct:true},
+            {label:"i = 11\nwhile i > 0:\n    pixels[i] = (255,200,0)\n    i -= 1", correct:false, feedback:"i > 0 stops before pixel 0 is set. Use i >= 0 to include pixel 0."},
+            {label:"i = 0\nwhile i < 12:\n    pixels[11-i] = (255,200,0)\n    i += 1", correct:true},
+            {label:"i = 11\nwhile i >= 0:\n    pixels[i] = (255,200,0)", correct:false, feedback:"Missing i -= 1 — infinite loop. i would stay at 11 forever."}
+          ],
+          explanation:"Start at i=11 and use i -= 1 to count down. The condition i >= 0 ensures pixel 0 gets lit before the loop ends.",
+          retry:{
+            intro:"Which code fills the strip from pixel 11 to 0 in cyan, counting down?",
+            options:[
+              {label:"i = 11\nwhile i >= 0:\n    pixels[i] = (0,220,220)\n    i -= 1", correct:true},
+              {label:"i = 11\nwhile i > 0:\n    pixels[i] = (0,220,220)\n    i -= 1", correct:false, feedback:"i > 0 misses pixel 0. Use i >= 0."},
+              {label:"i = 0\nwhile i < 12:\n    pixels[i] = (0,220,220)\n    i += 1", correct:false, feedback:"This counts up from 0 to 11, not down from 11 to 0."},
+              {label:"i = 11\nwhile i >= 0:\n    pixels[i] = (0,220,220)", correct:false, feedback:"No i -= 1 — infinite loop."}
+            ],
+            explanation:"Countdown: start at 11, condition >= 0, decrement with i -= 1."
+          }
+        }
+      }
+    ]
+  },
+  {
+    id:"c3", title:"Concept 3: nested loops", badge:"Loops in CircuitPython",
+    problems:[
+      {
+        id:"p3a", phase_start:"predict",
+        code:"colors = [(255,0,0),(0,255,0),(0,0,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color",
+        predict:{
+          question:"What does this nested loop do to the strip?",
+          options:["Lights each pixel a different color","Flashes red then green then blue — ends blue","Lights 3 pixels each color","Crashes — you cannot nest loops"],
+          answer:1,
+          hint:"The outer loop picks a color. The inner loop sets ALL 12 pixels to that color. After all three colors, the strip is left blue.",
+          retry:{
+            intro:"Similar nested loop — what is the final state?",
+            code:"colors = [(255,255,0),(0,220,220)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color",
+            question:"What color is the strip when this finishes?",
+            options:[
+              {label:"Yellow", correct:false, feedback:"Yellow runs first but gets overwritten. The last color in the list wins."},
+              {label:"Cyan", correct:true},
+              {label:"Half yellow half cyan", correct:false, feedback:"The inner loop sets ALL pixels to each color — no splitting."},
+              {label:"Off", correct:false, feedback:"The last operation sets all pixels to cyan."}
+            ],
+            explanation:"The last iteration of the outer loop (cyan) overwrites yellow. Final state: all cyan."
+          }
+        },
+        run:{
+          steps:[
+            {line:"colors = [(255,0,0),(0,255,0),(0,0,255)]", delay:600, result:null, commentary:"A list of 3 RGB color tuples is created.", pixelState:[OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF]},
+            {line:"for color in colors:  # color = RED", delay:600, result:null, commentary:"Outer loop iteration 1: color = (255,0,0) red."},
+            {line:"    for i in range(12): pixels[i] = RED", delay:700, result:null, commentary:"Inner loop sets all 12 pixels to red.", pixelState:[RED,RED,RED,RED,RED,RED,RED,RED,RED,RED,RED,RED]},
+            {line:"for color in colors:  # color = GREEN", delay:600, result:null, commentary:"Outer loop iteration 2: color = (0,255,0) green."},
+            {line:"    for i in range(12): pixels[i] = GREEN", delay:700, result:null, commentary:"All 12 pixels overwritten to green.", pixelState:[GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN,GREEN]},
+            {line:"for color in colors:  # color = BLUE", delay:600, result:null, commentary:"Outer loop iteration 3: color = (0,0,255) blue."},
+            {line:"    for i in range(12): pixels[i] = BLUE", delay:700, result:null, commentary:"All 12 pixels overwritten to blue. Both loops end.", pixelState:[BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE,BLUE]}
+          ],
+          is_error:false,
+          explanation:"The outer loop runs 3 times (once per color). Each time, the inner loop sets all 12 pixels to that color. The strip cycles red to green to blue, ending blue."
+        },
+        investigate:{
+          questions:[
+            {
+              q:"How many total times does pixels[i] = color execute?",
+              options:["3","12","36","24"],
+              answer:2,
+              hint:"Outer loop runs 3 times. Inner loop runs 12 times each. 3 x 12 = 36.",
+              retry:{
+                intro:"How many total assignments happen here?",
+                code:"for x in range(4):\n    for y in range(3):\n        pixels[y] = (255,0,0)",
+                question:"Total pixel assignments?",
+                options:[
+                  {label:"3", correct:false, feedback:"That is just the inner loop count."},
+                  {label:"4", correct:false, feedback:"That is just the outer loop count."},
+                  {label:"12", correct:true},
+                  {label:"7", correct:false, feedback:"Multiply the loop counts: 4 x 3 = 12."}
+                ],
+                explanation:"Outer runs 4 times, inner runs 3 times each: 4 x 3 = 12 total."
+              }
+            },
+            {
+              q:"What color is the strip when both loops finish?",
+              options:["Red","Green","Blue","Random"],
+              answer:2,
+              hint:"The outer loop visits red, green, then blue last. The last color written wins.",
+              retry:{
+                intro:"What is the final pixel color after this?",
+                code:"for c in [(255,0,0),(0,255,0)]:\n    for i in range(12):\n        pixels[i] = c",
+                question:"Final strip color?",
+                options:[
+                  {label:"Red", correct:false, feedback:"Red runs first but green overwrites it."},
+                  {label:"Green", correct:true},
+                  {label:"Half red half green", correct:false, feedback:"The inner loop sets ALL pixels each time."},
+                  {label:"Off", correct:false, feedback:"The last operation sets everything to green."}
+                ],
+                explanation:"The last outer loop iteration (green) overwrites red. Final state: green."
+              }
+            }
+          ]
+        },
+        modify:{
+          prompt:"Add yellow to the pattern so the strip flashes red, green, yellow, then ends blue.",
+          options:[
+            {label:"colors = [(255,0,0),(0,255,0),(255,200,0),(0,0,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color", correct:true},
+            {label:"colors = [(255,0,0),(0,255,0),(0,0,255),(255,200,0)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color", correct:false, feedback:"Yellow is added but placed last — the strip ends yellow, not blue."},
+            {label:"colors = [(255,0,0),(0,255,0),(0,0,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = (255,200,0)", correct:false, feedback:"This replaces all colors with yellow — the list is ignored. Use pixels[i] = color."},
+            {label:"colors = [(255,0,0),(0,255,0),(0,0,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color\nfor i in range(12):\n    pixels[i] = (255,200,0)", correct:false, feedback:"Yellow comes after the main loop, so the strip ends yellow not blue."}
+          ],
+          explanation:"Add (255,200,0) yellow as the third item in the list, before (0,0,255) blue. The loop visits each color in order.",
+          retry:{
+            intro:"Change the pattern to go: cyan, pink, white — in that order.",
+            options:[
+              {label:"colors = [(0,220,220),(255,20,120),(255,255,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color", correct:true},
+              {label:"colors = [(255,20,120),(0,220,220),(255,255,255)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color", correct:false, feedback:"Pink comes before cyan here — the order is wrong."},
+              {label:"colors = [(0,220,220),(255,20,120),(255,255,255)]\nfor color in colors:\n    for i in range(6):\n        pixels[i] = color", correct:false, feedback:"range(6) only sets half the strip. Use range(12)."},
+              {label:"colors = [(0,220,220),(255,20,120)]\nfor color in colors:\n    for i in range(12):\n        pixels[i] = color", correct:false, feedback:"White is missing from the list."}
+            ],
+            explanation:"List order equals display order. All three tuples must be in the list and the inner loop must use range(12)."
+          }
+        },
+        make:{
+          prompt:"Create a theater chase — light every 4th pixel (0,4,8) in white, then shift by 1 to (1,5,9), then (2,6,10), then (3,7,11). Use a nested loop with range(offset, 12, 4).",
+          options:[
+            {label:"for offset in range(4):\n    for i in range(12):\n        pixels[i] = (0,0,0)\n    for i in range(offset, 12, 4):\n        pixels[i] = (255,255,255)", correct:true},
+            {label:"for i in range(12):\n    pixels[i] = (255,255,255)", correct:false, feedback:"This lights all pixels — not a chase pattern. You need an offset and range with a step."},
+            {label:"for offset in range(4):\n    for i in range(offset, 12, 4):\n        pixels[i] = (255,255,255)", correct:false, feedback:"No clearing between frames — after 4 offsets all pixels are lit."},
+            {label:"for offset in range(3):\n    for i in range(12):\n        pixels[i] = (0,0,0)\n    for i in range(offset, 12, 4):\n        pixels[i] = (255,255,255)", correct:false, feedback:"range(3) only covers offsets 0,1,2 — it misses offset 3 (pixels 3,7,11)."}
+          ],
+          explanation:"range(offset, 12, 4) is range with a step — it selects every 4th pixel starting from offset. Clearing the strip first ensures only the current frame shows.",
+          retry:{
+            intro:"Which code creates a 2-pixel-wide chase, clearing between frames?",
+            options:[
+              {label:"for offset in range(2):\n    for i in range(12):\n        pixels[i]=(0,0,0)\n    for i in range(offset,12,2):\n        pixels[i]=(255,0,0)", correct:true},
+              {label:"for offset in range(2):\n    for i in range(offset,12,2):\n        pixels[i]=(255,0,0)", correct:false, feedback:"No clearing between frames — after both frames all pixels are lit."},
+              {label:"for offset in range(3):\n    for i in range(12):\n        pixels[i]=(0,0,0)\n    for i in range(offset,12,2):\n        pixels[i]=(255,0,0)", correct:false, feedback:"range(3) creates 3 frames for a step-2 pattern — frame 2 (offset=2) duplicates frame 0."},
+              {label:"for i in range(0,12,2):\n    pixels[i]=(255,0,0)", correct:false, feedback:"This lights every other pixel once — it is not a chase pattern."}
+            ],
+            explanation:"For a step-2 chase, only 2 offsets needed: 0 and 1. Clear strip before each frame. range(offset,12,2) selects alternating pixels."
+          }
+        }
+      }
+    ]
+  }
+];
+
+function NeoPixelStrip(props) {
+  var pixels = props.pixels;
+  var animating = props.animating;
+  return React.createElement('div', {
+    style: { padding:"14px 10px", background:"#111", borderRadius:10, border:"1px solid #333", marginBottom:10 }
+  },
+    React.createElement('div', { style:{display:"flex",justifyContent:"space-between",marginBottom:8} },
+      React.createElement('span', { style:{fontSize:10,color:"#555",fontFamily:"monospace"} }, "NeoPixel Strip — 12 pixels"),
+      animating && React.createElement('span', { style:{fontSize:10,color:"#4ade80"} }, "● executing")
+    ),
+    React.createElement('div', { style:{display:"flex",gap:4,justifyContent:"center"} },
+      pixels.map(function(rgb, i) {
+        var isOn = rgb && (rgb[0]>0||rgb[1]>0||rgb[2]>0);
+        var color = isOn ? "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")" : "#1a1a1a";
+        var glow = isOn ? "0 0 8px rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+"), 0 0 16px rgba("+rgb[0]+","+rgb[1]+","+rgb[2]+",0.4)" : "none";
+        return React.createElement('div', { key:i, style:{display:"flex",flexDirection:"column",alignItems:"center",gap:3} },
+          React.createElement('div', {
+            style: { width:20, height:20, borderRadius:"50%", background:color, boxShadow:glow,
+              border:"1px solid "+(isOn?"#444":"#2a2a2a"), transition:"background 0.2s, box-shadow 0.2s" }
+          }),
+          React.createElement('span', { style:{fontSize:8,color:"#444",fontFamily:"monospace"} }, i)
+        );
+      })
+    )
+  );
+}
+
+function CodeBlock(props) {
+  var code = props.code;
+  if (!code) return null;
+  return React.createElement('pre', {
+    style: { background:"#0d1117", border:"1px solid #30363d", borderRadius:8, padding:"12px 14px",
+      fontSize:12, lineHeight:1.75, overflowX:"auto", margin:"8px 0", fontFamily:"monospace", whiteSpace:"pre", color:"#e6edf3" }
+  },
+    code.split("\n").map(function(ln, i) {
+      return React.createElement('div', { key:i },
+        React.createElement('span', { style:{color:"#444",marginRight:10,userSelect:"none",fontSize:10} }, i+1),
+        ln
+      );
+    })
+  );
+}
+
+function PhasePill(props) {
+  var p = phaseInfo[props.phase];
+  return React.createElement('span', {
+    style: { background:p.bg, color:p.color, border:"1px solid "+p.border, borderRadius:20, fontSize:11, padding:"3px 10px", fontWeight:500 }
+  }, p.label);
+}
+
+function IDEShell(props) {
+  var steps = props.steps, is_error = props.is_error, onDone = props.onDone, onPixelUpdate = props.onPixelUpdate;
+  var lineState = useState([]);
+  var lines = lineState[0], setLines = lineState[1];
+  var runningState = useState(false);
+  var running = runningState[0], setRunning = runningState[1];
+  var doneState = useState(false);
+  var done = doneState[0], setDone = doneState[1];
+  var endRef = useRef(null);
+
+  useEffect(function() {
+    if (endRef.current) endRef.current.scrollIntoView({ behavior:"smooth" });
+  }, [lines]);
+
+  function runCode() {
+    if (running || done) return;
+    setRunning(true);
+    setLines([{ type:"system", text:"Running code..." }]);
+    var delay = 400;
+    steps.forEach(function(s, i) {
+      setTimeout(function() {
+        setLines(function(prev) { return prev.concat([{ type:"exec", text:">>> "+s.line }]); });
+        if (s.pixelState && onPixelUpdate) onPixelUpdate(s.pixelState);
+        setTimeout(function() {
+          if (s.commentary) setLines(function(prev) { return prev.concat([{ type:"comment", text:s.commentary }]); });
+          if (s.result) setLines(function(prev) { return prev.concat([{ type:s.is_error?"error":"output", text:s.result }]); });
+          if (i === steps.length - 1) { setDone(true); setRunning(false); }
+        }, 280);
+      }, delay);
+      delay += s.delay;
+    });
+  }
+
+  function lineColor(type) {
+    if (type==="exec") return "#e6edf3";
+    if (type==="output") return "#4ade80";
+    if (type==="error") return "#f85149";
+    if (type==="comment") return "#555";
+    return "#60a5fa";
+  }
+
+  return React.createElement('div', {
+    style: { background:"#0d1117", border:"1px solid #30363d", borderRadius:10, overflow:"hidden", margin:"8px 0" }
+  },
+    React.createElement('div', {
+      style: { background:"#161b22", borderBottom:"1px solid #30363d", padding:"7px 14px", display:"flex", alignItems:"center", gap:8 }
+    },
+      React.createElement('div', { style:{width:9,height:9,borderRadius:"50%",background:"#ff5f57"} }),
+      React.createElement('div', { style:{width:9,height:9,borderRadius:"50%",background:"#febc2e"} }),
+      React.createElement('div', { style:{width:9,height:9,borderRadius:"50%",background:"#28c840"} }),
+      React.createElement('span', { style:{fontSize:11,color:"#8b949e",marginLeft:8} }, "CircuitPython Shell"),
+      running && React.createElement('span', { style:{fontSize:11,color:"#4ade80",marginLeft:"auto"} }, "● running"),
+      done && React.createElement('span', { style:{fontSize:11,color:is_error?"#f85149":"#4ade80",marginLeft:"auto"} }, is_error?"● error":"● done")
+    ),
+    React.createElement('div', { style:{padding:"10px 14px",minHeight:70,maxHeight:180,overflowY:"auto"} },
+      lines.length===0 && React.createElement('span', { style:{color:"#444",fontSize:12,fontFamily:"monospace"} }, "Press Run to execute"),
+      lines.map(function(ln, i) {
+        return React.createElement('div', { key:i, style:{fontFamily:"monospace",fontSize:12,lineHeight:1.65,color:lineColor(ln.type)} },
+          ln.type==="comment" && React.createElement('span', { style:{color:"#333",marginRight:4} }, "→"),
+          ln.text
+        );
+      }),
+      React.createElement('div', { ref:endRef })
+    ),
+    !running && !done && React.createElement('div', { style:{borderTop:"1px solid #30363d",padding:"9px 14px"} },
+      React.createElement('button', {
+        onClick:runCode,
+        style:{background:"#238636",border:"none",borderRadius:6,color:"#fff",fontSize:13,padding:"6px 16px",cursor:"pointer",fontWeight:500}
+      }, "▶ Run")
+    ),
+    done && React.createElement('div', { style:{borderTop:"1px solid #30363d",padding:"9px 14px"} },
+      React.createElement('button', {
+        onClick:onDone,
+        style:{background:"#185FA5",border:"none",borderRadius:6,color:"#fff",fontSize:13,padding:"6px 16px",cursor:"pointer",fontWeight:500}
+      }, "Understand what happened →")
+    )
+  );
+}
+
+function App() {
+  var cIdxS=useState(0), cIdx=cIdxS[0], setCIdx=cIdxS[1];
+  var pIdxS=useState(0), pIdx=pIdxS[0], setPIdx=pIdxS[1];
+  var phaseS=useState(null), phase=phaseS[0], setPhase=phaseS[1];
+  var invQS=useState(0), invQ=invQS[0], setInvQ=invQS[1];
+  var chosenS=useState(null), chosen=chosenS[0], setChosen=chosenS[1];
+  var correctS=useState(null), correct=correctS[0], setCorrect=correctS[1];
+  var feedbackTextS=useState(null), feedbackText=feedbackTextS[0], setFeedbackText=feedbackTextS[1];
+  var showRetryS=useState(false), showRetry=showRetryS[0], setShowRetry=showRetryS[1];
+  var retryChosenS=useState(null), retryChosen=retryChosenS[0], setRetryChosen=retryChosenS[1];
+  var retryCorrectS=useState(null), retryCorrect=retryCorrectS[0], setRetryCorrect=retryCorrectS[1];
+  var retryFeedbackTextS=useState(null), retryFeedbackText=retryFeedbackTextS[0], setRetryFeedbackText=retryFeedbackTextS[1];
+  var shellDoneS=useState(false), shellDone=shellDoneS[0], setShellDone=shellDoneS[1];
+  var winsS=useState(0), wins=winsS[0], setWins=winsS[1];
+  var badgesS=useState([]), badges=badgesS[0], setBadges=badgesS[1];
+  var screenS=useState("intro"), screen=screenS[0], setScreen=screenS[1];
+  var showBadgeS=useState(null), showBadge=showBadgeS[0], setShowBadge=showBadgeS[1];
+  var pixelsS=useState(function(){return Array(12).fill(OFF);}), pixels=pixelsS[0], setPixels=pixelsS[1];
+  var animatingS=useState(false), animating=animatingS[0], setAnimating=animatingS[1];
+
+  var concept = CONCEPTS[cIdx];
+  var problem = concept && concept.problems[pIdx];
+
+  function resetPhaseState() {
+    setChosen(null); setCorrect(null); setFeedbackText(null);
+    setShowRetry(false); setRetryChosen(null); setRetryCorrect(null);
+    setRetryFeedbackText(null); setShellDone(false);
+  }
+
+  useEffect(function() {
+    if (problem) { setPhase(problem.phase_start); resetPhaseState(); setInvQ(0); setPixels(Array(12).fill(OFF)); }
+  }, [cIdx, pIdx]);
+
+  function goNextPhase() {
+    resetPhaseState();
+    var i = PHASES.indexOf(phase);
+    if (i < PHASES.length-1) setPhase(PHASES[i+1]);
+    else doCompleteProblem();
+  }
+
+  function doCompleteProblem() {
+    setWins(function(w){return w+1;});
+    var c = CONCEPTS[cIdx];
+    if (c.badge && badges.indexOf(c.badge)===-1) {
+      setBadges(function(b){return b.concat([c.badge]);});
+      setShowBadge(c.badge);
+    } else {
+      advanceProblem();
+    }
+  }
+
+  function advanceProblem() {
+    var nextP = pIdx+1;
+    if (nextP < concept.problems.length) {
+      setPIdx(nextP);
+    } else {
+      var nextC = cIdx+1;
+      if (nextC < CONCEPTS.length) { setCIdx(nextC); setPIdx(0); }
+      else setScreen("complete");
+    }
+  }
+
+  function handleChoice(i, options, retryData) {
+    if (chosen !== null) return;
+    setChosen(i);
+    var opt = options[i];
+    var isCorrect = typeof opt==="object" ? opt.correct : (i===options.answer);
+    var text = isCorrect ? null : (typeof opt==="object" ? opt.feedback : ((retryData&&retryData.hint)||"Not quite."));
+    setCorrect(isCorrect);
+    setFeedbackText(text);
+    if (!isCorrect && retryData) setShowRetry(true);
+  }
+
+  function handleRetryChoice(i, retryData) {
+    if (retryChosen !== null) return;
+    setRetryChosen(i);
+    var rawOpts = retryData.options||[];
+    var opts = rawOpts.map(function(o,idx){ return typeof o==="object" ? o : {label:o,correct:idx===retryData.answer}; });
+    var opt = opts[i];
+    setRetryCorrect(opt.correct);
+    setRetryFeedbackText(opt.correct ? (retryData.explanation||"Correct!") : opt.feedback);
+  }
+
+  var st = { fontFamily:"system-ui,sans-serif", color:"var(--color-text-primary)", maxWidth:500, margin:"0 auto", padding:"16px" };
+
+  function Feedback(p) {
+    return React.createElement('div', {
+      style:{marginTop:10,background:p.isCorrect?"#E1F5EE":"var(--color-background-danger)",border:"1px solid "+(p.isCorrect?"#1D9E75":"var(--color-border-danger)"),borderRadius:8,padding:"12px 14px"}
+    },
+      React.createElement('p',{style:{color:p.isCorrect?"#085041":"var(--color-text-danger)",fontSize:13,fontWeight:500,margin:"0 0 4px"}}, p.isCorrect?"Correct!":"Not quite —"),
+      p.text && React.createElement('p',{style:{color:p.isCorrect?"#0F6E56":"var(--color-text-danger)",fontSize:13,lineHeight:1.65,margin:0}}, p.text),
+      p.isCorrect && p.explanation && React.createElement('p',{style:{color:"#0F6E56",fontSize:13,lineHeight:1.65,margin:"6px 0 0"}}, p.explanation)
+    );
+  }
+
+  function RetryBlock(p) {
+    var retryData = p.retryData;
+    if (!retryData) return null;
+    var rawOpts = retryData.options||[];
+    if (rawOpts.length===0) return null;
+    var opts = rawOpts.map(function(o,idx){ return typeof o==="object"?o:{label:o,correct:idx===retryData.answer}; });
+    return React.createElement('div', {
+      style:{marginTop:14,background:"var(--color-background-secondary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:10,padding:"14px"}
+    },
+      React.createElement('p',{style:{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:6,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.05em"}},"Similar example"),
+      retryData.intro && React.createElement('p',{style:{fontSize:13,color:"var(--color-text-primary)",lineHeight:1.6,margin:"0 0 8px"}},retryData.intro),
+      retryData.code && React.createElement(CodeBlock,{code:retryData.code}),
+      retryData.question && React.createElement('p',{style:{fontSize:13,color:"var(--color-text-primary)",lineHeight:1.6,margin:"8px 0 10px"}},retryData.question),
+      React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:8}},
+        opts.map(function(opt,i){
+          var bg="var(--color-background-primary)",border="var(--color-border-secondary)",col="var(--color-text-primary)";
+          if(retryChosen!==null){
+            if(opt.correct&&i===retryChosen){bg="#E1F5EE";border="#1D9E75";col="#085041";}
+            else if(!opt.correct&&i===retryChosen){bg="var(--color-background-danger)";border="var(--color-border-danger)";col="var(--color-text-danger)";}
+            else if(opt.correct){bg="#E1F5EE";border="#1D9E75";col="#085041";}
+            else{col="var(--color-text-tertiary)";}
+          }
+          return React.createElement('button',{key:i,onClick:function(){handleRetryChoice(i,retryData);},style:{background:bg,border:"1px solid "+border,borderRadius:8,padding:"10px 14px",color:col,fontSize:12,textAlign:"left",cursor:retryChosen===null?"pointer":"default",fontFamily:"monospace",lineHeight:1.65}},opt.label);
+        })
+      ),
+      retryChosen!==null && React.createElement('div',{style:{marginTop:10,background:retryCorrect?"#E1F5EE":"var(--color-background-warning)",border:"1px solid "+(retryCorrect?"#1D9E75":"var(--color-border-warning)"),borderRadius:8,padding:"12px"}},
+        React.createElement('p',{style:{color:retryCorrect?"#085041":"var(--color-text-warning)",fontSize:13,fontWeight:500,margin:"0 0 4px"}},retryCorrect?"Correct!":"Not quite —"),
+        React.createElement('p',{style:{color:retryCorrect?"#0F6E56":"var(--color-text-warning)",fontSize:13,lineHeight:1.65,margin:0}},retryFeedbackText)
+      )
+    );
+  }
+
+  function ChoiceButtons(p) {
+    var options = p.options, onChoose = p.onChoose;
+    return React.createElement('div',{style:{display:"flex",flexDirection:"column",gap:8}},
+      options.map(function(opt,i){
+        var label=typeof opt==="string"?opt:opt.label;
+        var bg="var(--color-background-primary)",border="var(--color-border-secondary)",col="var(--color-text-primary)";
+        if(chosen!==null){
+          var isC=typeof opt==="object"?opt.correct:(i===options.answer);
+          if(isC&&i===chosen){bg="#E1F5EE";border="#1D9E75";col="#085041";}
+          else if(!isC&&i===chosen){bg="var(--color-background-danger)";border="var(--color-border-danger)";col="var(--color-text-danger)";}
+          else if(isC){bg="#E1F5EE";border="#1D9E75";col="#085041";}
+          else{col="var(--color-text-tertiary)";}
+        }
+        return React.createElement('button',{key:i,onClick:function(){onChoose(i);},style:{background:bg,border:"1px solid "+border,borderRadius:8,padding:"10px 14px",color:col,fontSize:12,textAlign:"left",cursor:chosen===null?"pointer":"default",fontFamily:"monospace",lineHeight:1.65}},label);
+      })
+    );
+  }
+
+  function ContinueBtn(p) {
+    return React.createElement('button',{onClick:p.onClick,style:{marginTop:10,width:"100%",padding:"12px",borderRadius:8,background:p.color||"#0F6E56",color:"#fff",border:"none",fontSize:14,fontWeight:500,cursor:"pointer"}},p.label);
+  }
+
+  if (showBadge) {
+    return React.createElement('div',{style:Object.assign({},st,{textAlign:"center",paddingTop:40})},
+      React.createElement('div',{style:{width:72,height:72,borderRadius:"50%",background:"#E1F5EE",border:"3px solid #1D9E75",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 16px",color:"#0F6E56",fontWeight:500}},"NP"),
+      React.createElement('h2',{style:{fontSize:20,fontWeight:500,margin:"0 0 8px"}},"Badge earned!"),
+      React.createElement('div',{style:{background:"#E1F5EE",border:"1px solid #9FE1CB",borderRadius:20,padding:"8px 20px",display:"inline-block",marginBottom:16}},
+        React.createElement('span',{style:{color:"#085041",fontWeight:500}},showBadge)
+      ),
+      React.createElement('p',{style:{color:"var(--color-text-secondary)",fontSize:14,marginBottom:24,lineHeight:1.6}},"Concept mastered. Keep building!"),
+      React.createElement('button',{onClick:function(){setShowBadge(null);advanceProblem();},style:{padding:"12px 28px",borderRadius:8,background:"#1D9E75",color:"#fff",border:"none",fontSize:15,fontWeight:500,cursor:"pointer"}},"Continue →")
+    );
+  }
+
+  if (screen==="complete") {
+    return React.createElement('div',{style:Object.assign({},st,{textAlign:"center",paddingTop:32})},
+      React.createElement(NeoPixelStrip,{pixels:Array(12).fill(GREEN),animating:false}),
+      React.createElement('div',{style:{fontSize:36,marginBottom:12}},"★"),
+      React.createElement('h2',{style:{fontSize:20,fontWeight:500,margin:"0 0 8px"}},"Unit 6 complete!"),
+      React.createElement('p',{style:{color:"var(--color-text-secondary)",fontSize:14,marginBottom:20}},"You have mastered loops in CircuitPython."),
+      React.createElement('div',{style:{background:"var(--color-background-secondary)",borderRadius:12,padding:"14px",marginBottom:20}},
+        React.createElement('div',{style:{fontSize:12,color:"var(--color-text-secondary)",marginBottom:4}},"Total wins"),
+        React.createElement('div',{style:{fontSize:28,fontWeight:500}},wins)
+      ),
+      badges.length>0 && React.createElement('div',{style:{marginBottom:20,display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}},
+        badges.map(function(b){return React.createElement('div',{key:b,style:{background:"#E1F5EE",border:"1px solid #9FE1CB",borderRadius:20,padding:"6px 14px",color:"#085041",fontSize:13,fontWeight:500}},b);})
+      ),
+      React.createElement('button',{onClick:function(){setCIdx(0);setPIdx(0);setWins(0);setBadges([]);setPixels(Array(12).fill(OFF));setScreen("intro");resetPhaseState();},style:{padding:"12px 28px",borderRadius:8,background:"#185FA5",color:"#fff",border:"none",fontSize:14,cursor:"pointer"}},"Restart")
+    );
+  }
+
+  if (screen==="intro") {
+    var introColors = [RED,RED,OFF,GREEN,GREEN,OFF,BLUE,BLUE,OFF,YELLOW,YELLOW,OFF];
+    return React.createElement('div',{style:st},
+      React.createElement(NeoPixelStrip,{pixels:introColors,animating:false}),
+      React.createElement('div',{style:{textAlign:"center",marginBottom:20}},
+        React.createElement('div',{style:{background:"#E1F5EE",border:"1px solid #9FE1CB",borderRadius:12,padding:"8px 16px",display:"inline-block",marginBottom:12}},
+          React.createElement('span',{style:{color:"#085041",fontWeight:500,fontSize:12}},"Unit 6 — Loops in CircuitPython")
+        ),
+        React.createElement('h1',{style:{fontSize:21,fontWeight:500,margin:"0 0 8px"}},"NeoPixel Loop Tutor"),
+        React.createElement('p',{style:{color:"var(--color-text-secondary)",fontSize:14,lineHeight:1.65,margin:0}},"Learn Python loops by lighting up a 12-pixel NeoPixel strip. Each concept is taught through the PRIMM framework.")
+      ),
+      [["for loops with range()","Control which pixels light up using a loop counter"],
+       ["while loops","Animate pixels with a condition-based loop"],
+       ["nested loops","Layer loops to create color sequences and patterns"]].map(function(item){
+        return React.createElement('div',{key:item[0],style:{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}},
+          React.createElement('div',{style:{width:6,height:6,borderRadius:"50%",background:"#1D9E75",marginTop:6,flexShrink:0}}),
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:13,fontWeight:500}},item[0]),
+            React.createElement('div',{style:{fontSize:12,color:"var(--color-text-secondary)"}},item[1])
+          )
+        );
+      }),
+      React.createElement('div',{style:{marginTop:16}},
+        Object.entries(phaseInfo).map(function(entry){
+          var key=entry[0], p=entry[1];
+          var desc={predict:"Predict what the NeoPixels will do before running.",run:"Step through code and watch the strip animate.",investigate:"Answer questions about how the loop works.",modify:"Change the code to produce a different pattern.",make:"Write your own loop from the options provided."};
+          return React.createElement('div',{key:key,style:{display:"flex",gap:10,padding:"8px 0",borderBottom:"0.5px solid var(--color-border-tertiary)",alignItems:"flex-start"}},
+            React.createElement('div',{style:{background:p.bg,border:"1px solid "+p.border,borderRadius:8,padding:"3px 9px",fontSize:10,color:p.color,fontWeight:500,whiteSpace:"nowrap",marginTop:2}},p.label),
+            React.createElement('p',{style:{color:"var(--color-text-secondary)",fontSize:12,lineHeight:1.6,margin:0}},desc[key])
+          );
+        })
+      ),
+      React.createElement('button',{onClick:function(){setScreen("learn");},style:{width:"100%",marginTop:20,padding:"13px",borderRadius:8,background:"#0F6E56",color:"#fff",border:"none",fontSize:15,fontWeight:500,cursor:"pointer"}},"Start learning →")
+    );
+  }
+
+  if (!problem) return null;
+  var totalP=CONCEPTS.reduce(function(a,c){return a+c.problems.length;},0);
+  var doneP=CONCEPTS.slice(0,cIdx).reduce(function(a,c){return a+c.problems.length;},0)+pIdx;
+  var prog=Math.round((doneP/totalP)*100);
+
+  function canAdvanceInv() {
+    var isLast = invQ+1 >= problem.investigate.questions.length;
+    return {
+      isLast:isLast,
+      doAdvance:function(){
+        if(!isLast){setInvQ(function(v){return v+1;});resetPhaseState();}
+        else{setWins(function(w){return w+1;});goNextPhase();}
+      }
+    };
+  }
+
+  var mainContent = [];
+
+  mainContent.push(React.createElement('div',{key:"header",style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
+    React.createElement('span',{style:{fontSize:11,color:"var(--color-text-secondary)"}},concept.title),
+    React.createElement('span',{style:{fontSize:11,color:"var(--color-text-secondary)"}},wins+" wins"+(badges.length>0?" · "+badges.length+" badge":""))
+  ));
+
+  mainContent.push(React.createElement('div',{key:"progress",style:{height:4,background:"var(--color-background-secondary)",borderRadius:2,marginBottom:10,overflow:"hidden"}},
+    React.createElement('div',{style:{height:"100%",width:prog+"%",background:"#0F6E56",borderRadius:2,transition:"width 0.4s"}})
+  ));
+
+  mainContent.push(React.createElement(NeoPixelStrip,{key:"strip",pixels:pixels,animating:animating}));
+  mainContent.push(React.createElement('div',{key:"pill",style:{marginBottom:10}},React.createElement(PhasePill,{phase:phase})));
+  mainContent.push(React.createElement('div',{key:"code",style:{background:"var(--color-background-primary)",border:"0.5px solid var(--color-border-tertiary)",borderRadius:12,padding:"12px 14px",marginBottom:12}},
+    React.createElement('div',{style:{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:4}},"CircuitPython code"),
+    React.createElement(CodeBlock,{code:problem.code})
+  ));
+
+  if (phase==="predict" && problem.predict) {
+    var pd=problem.predict;
+    var opts=pd.options.map(function(o,i){return{label:o,correct:i===pd.answer};});
+    mainContent.push(React.createElement('div',{key:"predict"},
+      React.createElement('p',{style:{fontSize:14,lineHeight:1.65,marginBottom:12}},pd.question),
+      React.createElement(ChoiceButtons,{options:opts,onChoose:function(i){handleChoice(i,opts,pd.retry);}}),
+      chosen!==null && React.createElement(Feedback,{isCorrect:correct,text:correct?"Great prediction! Let us run the code.":feedbackText||pd.hint}),
+      !correct&&showRetry && React.createElement(RetryBlock,{retryData:pd.retry}),
+      (correct||retryCorrect) && React.createElement(ContinueBtn,{label:"Run the code →",onClick:goNextPhase,color:"#534AB7"})
+    ));
+  }
+
+  if (phase==="run" && problem.run) {
+    var run=problem.run;
+    mainContent.push(React.createElement('div',{key:"run"},
+      React.createElement('p',{style:{fontSize:13,color:"var(--color-text-secondary)",marginBottom:6}},"Step through the code and watch the NeoPixels animate."),
+      React.createElement(IDEShell,{steps:run.steps,is_error:run.is_error,onDone:function(){setShellDone(true);},onPixelUpdate:function(px){setAnimating(true);setPixels(px);setTimeout(function(){setAnimating(false);},400);}}),
+      shellDone && React.createElement('div',null,
+        React.createElement('div',{style:{background:run.is_error?"var(--color-background-danger)":"#E6F1FB",border:"1px solid "+(run.is_error?"var(--color-border-danger)":"#85B7EB"),borderRadius:8,padding:"12px 14px",marginBottom:10}},
+          React.createElement('p',{style:{color:run.is_error?"var(--color-text-danger)":"#0C447C",fontSize:13,lineHeight:1.7,margin:0}},run.explanation)
+        ),
+        React.createElement(ContinueBtn,{label:"Investigate →",onClick:goNextPhase})
+      )
+    ));
+  }
+
+  if (phase==="investigate" && problem.investigate) {
+    var q=problem.investigate.questions[invQ];
+    var invOpts=q.options.map(function(o,i){return{label:o,correct:i===q.answer};});
+    var inv=canAdvanceInv();
+    mainContent.push(React.createElement('div',{key:"investigate"},
+      React.createElement('div',{style:{display:"flex",justifyContent:"space-between",marginBottom:10}},
+        React.createElement('p',{style:{fontSize:14,lineHeight:1.6,margin:0,flex:1}},q.q),
+        React.createElement('span',{style:{fontSize:11,color:"var(--color-text-tertiary)",marginLeft:8,whiteSpace:"nowrap"}},(invQ+1)+"/"+problem.investigate.questions.length)
+      ),
+      React.createElement(ChoiceButtons,{options:invOpts,onChoose:function(i){handleChoice(i,invOpts,q.retry);}}),
+      chosen!==null && React.createElement(Feedback,{isCorrect:correct,text:correct?"Correct!":feedbackText||q.hint}),
+      !correct&&showRetry && React.createElement(RetryBlock,{retryData:q.retry}),
+      correct && React.createElement(ContinueBtn,{label:inv.isLast?"Modify the code →":"Next question →",onClick:inv.doAdvance}),
+      !correct&&retryCorrect && React.createElement(ContinueBtn,{label:inv.isLast?"Modify the code →":"Next question →",onClick:inv.doAdvance})
+    ));
+  }
+
+  if (phase==="modify"||phase==="make") {
+    var mpd=phase==="modify"?problem.modify:problem.make;
+    if (mpd) {
+      var isLastPhase=phase==="make";
+      var isLastProblem=pIdx+1>=concept.problems.length&&cIdx+1>=CONCEPTS.length;
+      var nextLabel=isLastPhase?(isLastProblem?"Complete unit!":"Next challenge →"):"Make your own →";
+      var btnColor=isLastPhase?"#993C1D":"#854F0B";
+      var doAdvance=function(){if(isLastPhase)doCompleteProblem();else goNextPhase();};
+      mainContent.push(React.createElement('div',{key:"modmake"},
+        React.createElement('p',{style:{fontSize:14,lineHeight:1.65,marginBottom:12}},mpd.prompt),
+        React.createElement(ChoiceButtons,{options:mpd.options,onChoose:function(i){handleChoice(i,mpd.options,mpd.retry);}}),
+        chosen!==null && React.createElement(Feedback,{isCorrect:correct,text:correct?null:feedbackText,explanation:correct?mpd.explanation:null}),
+        !correct&&showRetry && React.createElement(RetryBlock,{retryData:mpd.retry}),
+        correct && React.createElement(ContinueBtn,{label:nextLabel,onClick:doAdvance,color:btnColor}),
+        !correct&&retryCorrect && React.createElement(ContinueBtn,{label:nextLabel,onClick:doAdvance,color:btnColor})
+      ));
+    }
+  }
+
+  return React.createElement('div',{style:st},mainContent);
+}
+
+var root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+  </script>
+</body>
+</html>
